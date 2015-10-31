@@ -145,7 +145,7 @@ Download composer:
 
 and add dependency to your project:
 
-    php composer.phar require cheprasov/php-memcached-lock:*
+    php composer.phar require cheprasov/php-memcached-lock
 
 ## Running tests
 
