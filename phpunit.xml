@@ -20,10 +20,7 @@
     beStrictAboutTestSize               = "true"
         >
 
-    <testsuites>
-        <testsuite name="MemcachedLock Test Suite">
-            <directory>test/unit/*Test.php</directory>
-        </testsuite>
-    </testsuites>
-
+    <php>
+        <const name="MEMCACHED_TEST_SERVER" value="127.0.0.1:11211" />
+    </php>
 </phpunit>

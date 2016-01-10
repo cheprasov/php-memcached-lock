@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of MemcacheLock.
+ * This file is part of MemcachedLock.
  * git: https://github.com/cheprasov/php-memcached-lock
  *
  * (C) Alexander Cheprasov <cheprasov.84@ya.ru>
@@ -12,15 +12,57 @@ namespace MemcachedLock;
 
 use Memcached;
 use MemcachedLock\Exception\LockException;
-use MemcachedLock\Exception\LockIsActiveException;
+use MemcachedLock\Exception\LockHasAcquiredAlreadyException;
 use MemcachedLock\Exception\LostLockException;
+use InvalidArgumentException;
 
-class MemcachedLock extends AbstractLock {
+class MemcachedLock implements LockInterface {
+
+    const VERSION = '1.0.0';
+
+    /**
+     * Catch Lock exceptions and return false or null as result
+     */
+    const FLAG_CATCH_EXCEPTIONS = 1;
+
+    /**
+     * Use self synchronization between servers
+     */
+    const FLAG_USE_SELF_EXPIRE_SYNC = 2;
+
+    /**
+     * Sleep time between wait iterations, in seconds
+     */
+    const LOCK_DEFAULT_WAIT_SLEEP = 0.005;
+
+    /**
+     * Min lock time in seconds
+     * Used without FLAG_USE_SELF_EXPIRE_SYNC
+     */
+    const LOCK_MIN_TIME_SYNC = 0.01;
+
+    /**
+     * Min lock time in seconds
+     * Used with FLAG_USE_SELF_EXPIRE_SYNC
+     */
+    const LOCK_MIN_TIME = 1;
+
+    /**
+     * Expire lock time in seconds
+     * Used with FLAG_USE_SELF_EXPIRE_SYNC
+     */
+    const LOCK_SYNC_STORAGE_EXPIRE = 86400;
+
 
     /**
      * @var Memcached
      */
     protected $Memcached;
+
+    /**
+     * @var string
+     */
+    protected $key;
 
     /**
      * @var float
@@ -33,45 +75,91 @@ class MemcachedLock extends AbstractLock {
     protected $token;
 
     /**
-     * @var boolean
+     * Flags
+     * @var int
      */
-    protected $throwException;
+    protected $flags = 0;
+
+    /**
+     * @var int
+     */
+    protected $lockExpireTimeInMilliseconds = 0;
+
+    /**
+     * @var bool
+     */
+    protected $isAcquired = false;
 
     /**
      * @param Memcached $Memcached
      * @param string $key
-     * @param boolean $throwException
+     * @param int $flags
      */
-    public function __construct(Memcached $Memcached, $key, $throwException = true) {
-        parent::__construct($key);
+    public function __construct(Memcached $Memcached, $key, $flags = 0) {
+        if (!isset($key)) {
+            throw new InvalidArgumentException('Invalid key for Lock');
+        }
         $this->Memcached = $Memcached;
-        $this->token = posix_getpid() .':'. md5(microtime(true)) .':'. mt_rand(1, 9999);
-        $this->throwException = (boolean) $throwException;
+        $this->key = $key;
+        $this->setFlags($flags);
+        $this->token = $this->createToken();
     }
 
     /**
-     * @param int|string $unlockTime
+     *
+     */
+    public function __destruct() {
+        if ($this->isAcquired()) {
+            $this->release();
+        }
+    }
+
+    /**
+     * @return string
+     */
+    protected function createToken() {
+        return posix_getpid() .':'. microtime() .':'. mt_rand(1, 9999);
+    }
+
+    /**
+     * @param int|float|string $unlockTime
      * @return string
      */
     protected function getLockToken($unlockTime) {
-        return implode(':', [$unlockTime, $this->token]);
+        return $unlockTime .':'. $this->token;
     }
 
     /**
      * @param string $lockToken
-     * @return float
+     * @return int
      */
-    protected function getUnlockTimeFromLockToken($lockToken) {
+    protected function getExpireTimeFromLockToken($lockToken) {
+        if ($lockToken == 0) {
+            return 0;
+        }
         return (int) explode(':', $lockToken, 2)[0];
     }
 
     /**
-     * Cleat lock data
+     * @param int $flags
      */
-    protected function clear() {
-        $this->isAcquired = false;
-        $this->cas = null;
-        $this->unlockTime = null;
+    protected function setFlags($flags = 0) {
+        $this->flags = $flags;
+    }
+
+    /**
+     * @param int $flag
+     * @return bool
+     */
+    protected function isFlagExist($flag) {
+        return (bool) ($this->flags & $flag);
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isThrowExceptions() {
+        return !$this->isFlagExist(self::FLAG_CATCH_EXCEPTIONS);
     }
 
     /**
@@ -79,66 +167,131 @@ class MemcachedLock extends AbstractLock {
      * @return bool
      */
     protected function confirmLockToken($lockToken) {
-        $cachedValue = $this->Memcached->get($this->key, null, $cas);
-        if ($cachedValue === $lockToken && $this->Memcached->getResultCode() !== Memcached::RES_NOTFOUND) {
+        $storageValue = $this->Memcached->get($this->key, null, $cas);
+        if ($storageValue === $lockToken && $this->Memcached->getResultCode() !== Memcached::RES_NOTFOUND) {
             $this->isAcquired = true;
             $this->cas = $cas;
-            $this->unlockTime = $this->getUnlockTimeFromLockToken($lockToken);
+            $this->lockExpireTimeInMilliseconds = $this->getExpireTimeFromLockToken($lockToken);
             return true;
         }
-        $this->clear();
+        $this->resetLockData();
         return false;
     }
 
     /**
-     * @inheritdoc
-     * @throws LockIsActiveException
+     * Reset lock data
      */
-    public function acquire($lockTime, $waitTime = 0) {
-        if ($lockTime < static::LOCK_MIN_TIME) {
-            if ($this->throwException) {
-                throw new \InvalidArgumentException();
+    protected function resetLockData() {
+        $this->isAcquired = false;
+        $this->cas = null;
+        $this->lockExpireTimeInMilliseconds = null;
+    }
+
+    /**
+     * @param int|float $lockTime
+     * @return bool
+     */
+    protected function isValidLockTime($lockTime) {
+        if ($this->isFlagExist(self::FLAG_USE_SELF_EXPIRE_SYNC)) {
+            return $lockTime >= self::LOCK_MIN_TIME_SYNC;
+        } else {
+            return $lockTime >= self::LOCK_MIN_TIME;
+        }
+    }
+
+    /**
+     * @param int|float $waitTime
+     * @return bool
+     */
+    protected function isValidWaitTime($waitTime) {
+        return $waitTime >= 0;
+    }
+
+    /**
+     * @param float|int $time
+     * @return int
+     */
+    protected function getMilliseconds($time = null) {
+        if (is_null($time)) {
+            $time = microtime(true);
+        }
+        return round($time * 1000);
+    }
+
+    /**
+     * @param float|int $lockTime
+     * @return int
+     */
+    protected function getStorageExpireTime($lockTime) {
+        if ($this->isFlagExist(self::FLAG_USE_SELF_EXPIRE_SYNC)) {
+            return (int) max(ceil($lockTime), self::LOCK_SYNC_STORAGE_EXPIRE);
+        } else {
+            return (int) ceil($lockTime);
+        }
+    }
+
+    /**
+     * @inheritdoc
+     * @throws LockHasAcquiredAlreadyException
+     */
+    public function acquire($lockTime, $waitTime = 0, $sleep = null) {
+        if (!$this->isValidLockTime($lockTime)) {
+            if ($this->isThrowExceptions()) {
+                throw new InvalidArgumentException('Invalid LockTime '. $lockTime);
             }
             return false;
         }
-
-        if ($this->isAcquired()) {
-            if ($this->throwException) {
-                throw new LockIsActiveException("Lock '{$this->key}' is active yet");
+        if (!$this->isValidWaitTime($waitTime)) {
+            if ($this->isThrowExceptions()) {
+                throw new InvalidArgumentException('WaitTime '. $waitTime .' must be >= 0');
             }
+            return false;
+        }
+        if ($this->isAcquired()) {
+            if ($this->isThrowExceptions()) {
+                throw new LockHasAcquiredAlreadyException('Lock with key "'. $this->key .'" has acquired already');
+            }
+            return false;
         }
 
         $time = microtime(true);
         $exitTime = $waitTime + $time;
 
-        do {
-            $unlockMilliTime = $this->getMilliseconds(microtime(true) + $lockTime);
-            $lockToken = $this->getLockToken($unlockMilliTime);
+        if (!isset($sleep) || $sleep <= 0) {
+            $sleep = static::LOCK_DEFAULT_WAIT_SLEEP;
+        }
+        $sleep *= 1000000; // seconds to microseconds
 
-            if ($this->Memcached->add($this->key, $lockToken, max($lockTime, static::LOCK_EXPIRE))) {
+        $useSelfSync = $this->isFlagExist(self::FLAG_USE_SELF_EXPIRE_SYNC);
+
+        do {
+            $unlockTimeInMilliseconds = $this->getMilliseconds(microtime(true) + $lockTime);
+            $lockToken = $this->getLockToken($unlockTimeInMilliseconds);
+
+            if ($this->Memcached->add($this->key, $lockToken, $this->getStorageExpireTime($lockTime))) {
                 if ($this->confirmLockToken($lockToken)) {
                     return true;
                 }
                 continue;
             }
 
-            $cachedLockToken = $this->Memcached->get($this->key, null, $cas);
+            $storageLockToken = $this->Memcached->get($this->key, null, $cas);
             if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
-                // Ключа не сущестует, вернемся в начало и попробуем создать лок
+                // If key doesn't exist - will try to add again
                 continue;
             }
 
-            $cachedUnlockMilliTime = $cachedLockToken ? $this->getUnlockTimeFromLockToken($cachedLockToken) : 0;
+            $storageExpireTimeInMilliseconds = $storageLockToken ? $this->getExpireTimeFromLockToken($storageLockToken) : 0;
 
-            if ($cachedUnlockMilliTime < $this->getMilliseconds()) {
-                $result = $this->Memcached->cas($cas, $this->key, $lockToken, max($lockTime, static::LOCK_EXPIRE));
+            if (!$useSelfSync && !$storageExpireTimeInMilliseconds
+                || $useSelfSync && $storageExpireTimeInMilliseconds < $this->getMilliseconds()) {
+                $result = $this->Memcached->cas($cas, $this->key, $lockToken, $this->getStorageExpireTime($lockTime));
                 if ($result && $this->confirmLockToken($lockToken)) {
                     return true;
                 }
             }
 
-            usleep(static::LOCK_WAIT_TIME * 1000000);
-
+            usleep($sleep);
         } while ($waitTime && microtime(true) < $exitTime);
 
         return false;
@@ -151,21 +304,24 @@ class MemcachedLock extends AbstractLock {
      */
     public function release() {
         if (!$this->isAcquired()) {
-            if ($this->throwException) {
-                throw new LockException("Lock '{$this->key}' is not active");
+            if ($this->isThrowExceptions()) {
+                throw new LockException('Lock "'. $this->key .'" is not acquired');
             }
             return false;
         }
-        // Такой хитрый способ освобождения лока
+
+        // Safe way to delete a key
         $result = $this->Memcached->cas($this->cas, $this->key, 0, 1);
-        $this->clear();
-        if (!$result) {
-            if ($this->throwException) {
-                throw new LostLockException("Lock '{$this->key}' was lost: {$this->Memcached->getResultMessage()}");
-            }
-            return false;
+        $this->resetLockData();
+
+        if ($result) {
+            return true;
         }
-        return true;
+
+        if ($this->isThrowExceptions()) {
+            throw new LostLockException('Lock "'. $this->key .'" has lost: '. $this->Memcached->getResultMessage());
+        }
+        return false;
     }
 
     /**
@@ -175,28 +331,37 @@ class MemcachedLock extends AbstractLock {
      * @throws LostLockException
      */
     public function update($lockTime) {
-        if ($lockTime < static::LOCK_MIN_TIME) {
-            if ($this->throwException) {
-                throw new \InvalidArgumentException();
+        if (!$this->isValidLockTime($lockTime)) {
+            if ($this->isThrowExceptions()) {
+                throw new InvalidArgumentException('Invalid LockTime '. $lockTime);
             }
             return false;
         }
-        if (!$this->isAcquired() || !$this->cas) {
-            if ($this->throwException) {
-                throw new LockException("Lock '{$this->key}' is not active");
+        if (!$this->isAcquired()) {
+            if ($this->isThrowExceptions()) {
+                throw new LockException('Lock "'. $this->key .'" is not active');
             }
             return false;
         }
-        $unlockMilliTime = $this->getMilliseconds(microtime(true) + $lockTime);
-        $lockToken = $this->getLockToken($unlockMilliTime);
-        $result = $this->Memcached->cas($this->cas, $this->key, $lockToken, max($lockTime, static::LOCK_EXPIRE));
+
+        $expireTimeInMilliseconds = $this->getMilliseconds(microtime(true) + $lockTime);
+        $lockToken = $this->getLockToken($expireTimeInMilliseconds);
+
+        $result = $this->Memcached->cas($this->cas, $this->key, $lockToken, $this->getStorageExpireTime($lockTime));
         if ($result && $this->confirmLockToken($lockToken)) {
             return true;
         }
-        if ($this->throwException) {
-            throw new LostLockException("Lock '{$this->key}' {$this->Memcached->getResultMessage()}");
+        if ($this->isThrowExceptions()) {
+            throw new LostLockException('Lost Lock "'. $this->key .'" on Update: '. $this->Memcached->getResultMessage());
         }
         return false;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isAcquired() {
+        return $this->isAcquired;
     }
 
     /**
@@ -204,34 +369,36 @@ class MemcachedLock extends AbstractLock {
      * @throws LostLockException
      */
     public function isLocked() {
-        if (!parent::isAcquired()) {
+        if (!$this->isAcquired()) {
             return false;
         }
-        $cachedLockToken = $this->Memcached->get($this->key, null, $cas);
+
+        $storageLockToken = $this->Memcached->get($this->key, null, $cas);
         if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
-            if ($this->throwException) {
-                throw new LostLockException("Key '{$this->key}' is not found");
+            $this->resetLockData();
+            if ($this->isThrowExceptions()) {
+                throw new LostLockException('Key "'. $this->key .'" is not found in storage');
             }
             return false;
         }
-        if (!$cas || $cas != $this->cas) {
-            if ($this->throwException) {
-                throw new LostLockException("Key '{$this->key}' has wrong CAS");
+
+        if (!$cas || (string) $cas !== (string) $this->cas) {
+            $this->resetLockData();
+            if ($this->isThrowExceptions()) {
+                throw new LostLockException('Key "'. $this->key .'" has expired CAS');
             }
             return false;
         }
-        if ($this->getLockToken($this->unlockTime) === $cachedLockToken) {
+
+        if ($this->getLockToken($this->lockExpireTimeInMilliseconds) === $storageLockToken) {
             return true;
         }
-        $cachedUnlockMilliTime = $cachedLockToken ? $this->getUnlockTimeFromLockToken($cachedLockToken) : 0;
-        if ($cachedUnlockMilliTime < $this->getMilliseconds()) {
-            if ($this->throwException) {
-                throw new LostLockException("Key '{$this->key}' was expired by wrong unlockTime '{$cachedUnlockMilliTime}'");
-            }
-            return false;
-        }
-        if ($this->throwException) {
-            throw new LostLockException("Key '{$this->key}' undefined error");
+
+        $this->resetLockData();
+        if ($this->isThrowExceptions()) {
+            throw new LostLockException(
+                'Key "'. $this->key .'" with token has another token in storage '. $storageLockToken
+            );
         }
         return false;
     }
@@ -240,11 +407,18 @@ class MemcachedLock extends AbstractLock {
      * @inheritdoc
      */
     public function isExists() {
-        $cachedLockToken = $this->Memcached->get($this->key);
+        $storageLockToken = $this->Memcached->get($this->key);
         if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
             return false;
         }
-        $cachedUnlockTime = $cachedLockToken ? $this->getUnlockTimeFromLockToken($cachedLockToken) : 0;
-        return $cachedUnlockTime > microtime(true);
+
+        $useSelfSync = $this->isFlagExist(self::FLAG_USE_SELF_EXPIRE_SYNC);
+        $storageExpireTimeInMilliseconds = $storageLockToken ? $this->getExpireTimeFromLockToken($storageLockToken) : 0;
+
+        if (!$useSelfSync && !$storageExpireTimeInMilliseconds
+            || $useSelfSync && $storageExpireTimeInMilliseconds < $this->getMilliseconds()) {
+            return false;
+        }
+        return true;
     }
 } 

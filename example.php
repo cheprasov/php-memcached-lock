@@ -8,7 +8,7 @@ $M->addServer('127.0.0.1', '11211');
 $result = $M->get('test', null, $cas);
 
 /**
- * Safe update json in Memcache storage
+ * Safe update json in Memcached storage
  * @param Memcached $Memcached
  * @param string $key
  * @param array $array
@@ -27,10 +27,9 @@ function updateJsonInMemcached(\Memcached $Memcached, $key, array $array) {
 
     // Get key from storage
     $json = $Memcached->get($key);
-    if (!$json) {
-        $json = [];
+    if (!$json || !($jsonArray = json_decode($json, true))) {
+        $jsonArray = [];
     }
-    $jsonArray = json_decode($json, true);
     $jsonArray = array_merge($jsonArray, $array);
     $json = json_encode($jsonArray);
     // Update key in storage

@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of MemcacheLock.
+ * This file is part of MemcachedLock.
  * git: https://github.com/cheprasov/php-memcached-lock
  *
  * (C) Alexander Cheprasov <cheprasov.84@ya.ru>
@@ -14,35 +14,41 @@ interface LockInterface {
 
     /**
      * Acquire the lock
-     * @param int $lockTime
-     * @param int $waitTime
-     * @return boolean
+     * @param int|float $lockTime in Seconds
+     * @param int|float $waitTime in Seconds
+     * @param int $sleep in Seconds
+     * @return bool
      */
-    public function acquire($lockTime, $waitTime = 0);
+    public function acquire($lockTime, $waitTime = 0, $sleep = null);
 
     /**
      * Release the lock
-     * @return boolean
+     * @return bool
      */
     public function release();
 
     /**
      * Set a new time for acquired lock
-     * @param int|float|string $lockTime
-     * @return boolean
+     * @param int|float $lockTime
+     * @return bool
      */
     public function update($lockTime);
 
-
     /**
      * Check this lock for acquired and not expired
-     * @return boolean
+     * @return bool
+     */
+    public function isAcquired();
+
+    /**
+     * Check this lock for acquired and not expired, and active yet
+     * @return bool
      */
     public function isLocked();
 
     /**
      * Does lock exists or acquired anywhere else?
-     * @return boolean
+     * @return bool
      */
     public function isExists();
 

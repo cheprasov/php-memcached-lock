@@ -62,10 +62,11 @@ function updateJsonInMemcached(\Memcached $Memcached, $key, array $array) {
     // Get key from storage
     $json = $Memcached->get($key);
     if (!$json) {
-        $json = [];
+        $jsonArray = [];
+    } else {
+        // Some operations with json
+        $jsonArray = json_decode($json, true);
     }
-    // Some operations with json
-    $jsonArray = json_decode($json, true);
     $jsonArray = array_merge($jsonArray, $array);
     $json = json_encode($jsonArray);
     // Update key in storage
@@ -151,7 +152,7 @@ and add dependency to your project:
 
 To run tests type in console:
 
-    phpunit
+    ./vendor/bin/phpunit ./test/
 
 ## Something doesn't work
 
