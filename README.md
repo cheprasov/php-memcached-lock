@@ -90,7 +90,7 @@ Create a new instance of MemcachedLock.
 2. string **$key** - name of key in Memcached storage. Only locks with the same name will compete with each other for lock.
 3. int **$flags**, default = 0
    * `MemcachedLock::FLAG_CATCH_EXCEPTIONS` - use this flag, if you don't want catch exceptions by yourself. Do not use this flag, if you want have a full control on situation with locks. Default behavior without this flag - all Exceptions will be thrown.
-   * `MemcachedLock::FLAG_USE_SELF_EXPIRE_SYNC` - by default (without this flag), MemcachedLock uses Memcached for sync of expire time of locks. It is very useful if you have multiple servers that are not synchronized in time. It is recommended to use this flag when lock works on single server. Can be used for multiple servers on a strict time synchronisation of multiple servers.
+   * `MemcachedLock::FLAG_USE_SELF_EXPIRE_SYNC` - without this flag, MemcachedLock uses Memcached for sync of expire time of locks. It is very useful if you have multiple servers that are not synchronized in time. It is recommended to use this flag when lock works on single server. Can be used for multiple servers on a strict time synchronisation of multiple servers.
 
 ##### Example
 
