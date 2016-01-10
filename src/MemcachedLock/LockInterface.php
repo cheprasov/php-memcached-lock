@@ -35,7 +35,7 @@ interface LockInterface {
     public function update($lockTime);
 
     /**
-     * Check this lock for acquired and not expired
+     * Check this lock for acquired
      * @return bool
      */
     public function isAcquired();
