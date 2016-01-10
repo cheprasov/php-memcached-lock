@@ -1,7 +1,6 @@
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
-MemcachedLock for PHP v1.0.0
-=========
+# MemcachedLock for PHP v1.0.0
 
 ## About
 MemcachedLock for PHP is a synchronization mechanism for enforcing limits on access to a resource in an environment where there are many threads of execution. A lock is designed to enforce a mutual exclusion concurrency control policy. Based on [Memcached](http://php.net/manual/en/book.memcached.php).
@@ -82,7 +81,7 @@ function updateJsonInMemcached(\Memcached $Memcached, $key, array $array) {
 ## Methods
 
 #### MemcachedLock :: __construct ( `\Memcached` **$Memcached** , `string` **$key** [, `int` **$flags** = 0 ] )
-
+---
 Create a new instance of MemcachedLock.
 
 ##### Method Pameters
@@ -107,7 +106,7 @@ $Lock = new MemcachedLock($Memcached, 'lockName',
 ```
 
 #### `bool` MemcachedLock :: acquire ( `int|float` **$lockTime** , [ `float` **$waitTime** = 0 [, `float` **$sleep** = 0.005 ] ] )
-
+---
 Try to acquire lock for `$lockTime` seconds.
 If lock has acquired in another thread then we will wait `$waitTime` seconds, until another thread release the lock.
 Otherwise method throws a exception (if `FLAG_CATCH_EXCEPTIONS` is not set) or result.
@@ -129,7 +128,7 @@ $Lock->release();
 ```
 
 #### `bool` MemcachedLock :: update ( `int|float` **$lockTime** )
-
+---
 Set a new time for lock if it is acquired already. Returns `true` on success or `false` on failure. Method can throw Exceptions.
 
 ##### Method Pameters
@@ -147,15 +146,15 @@ $Lock->release();
 ```
 
 #### `bool` MemcachedLock :: isAcquired ( )
-
+---
 Check this lock for acquired. Returns `true` on success or `false` on failure.
 
 #### `bool` MemcachedLock :: isLocked ( )
-
+---
 Check this lock for acquired and not expired, and active yet. Returns `true` on success or `false` on failure. Method can throw Exceptions.
 
 #### `bool` MemcachedLock :: isExists ()
-
+---
 Does lock exists or acquired anywhere? Returns `true` if lock is exists or `false` if is not.
 
 ## Installation
