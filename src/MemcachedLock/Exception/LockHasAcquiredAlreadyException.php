@@ -1,6 +1,6 @@
 <?php
 /**
- * This file is part of MemcacheLock.
+ * This file is part of MemcachedLock.
  * git: https://github.com/cheprasov/php-memcached-lock
  *
  * (C) Alexander Cheprasov <cheprasov.84@ya.ru>
@@ -10,6 +10,6 @@
  */
 namespace MemcachedLock\Exception;
 
-class LockIsActiveException extends LockException {
+class LockHasAcquiredAlreadyException extends LockException {
 
 }
