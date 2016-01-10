@@ -146,7 +146,6 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
             $MemcachedLock,
             MemcachedLock::FLAG_USE_SELF_EXPIRE_SYNC
         ));
-
     }
 
 }
