@@ -1,6 +1,6 @@
 [![MIT license](http://img.shields.io/badge/license-MIT-brightgreen.svg)](http://opensource.org/licenses/MIT)
 
-# MemcachedLock for PHP v1.0.0
+# MemcachedLock v1.0.0 for PHP
 
 ## About
 MemcachedLock for PHP is a synchronization mechanism for enforcing limits on access to a resource in an environment where there are many threads of execution. A lock is designed to enforce a mutual exclusion concurrency control policy. Based on [Memcached](http://php.net/manual/en/book.memcached.php).
