@@ -18,7 +18,7 @@ use InvalidArgumentException;
 
 class MemcachedLock implements LockInterface {
 
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.1';
 
     /**
      * Catch Lock exceptions and return false or null as result
