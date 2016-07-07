@@ -18,7 +18,7 @@ use InvalidArgumentException;
 
 class MemcachedLock implements LockInterface {
 
-    const VERSION = '1.0.1';
+    const VERSION = '1.0.2';
 
     /**
      * Catch Lock exceptions and return false or null as result
@@ -291,7 +291,9 @@ class MemcachedLock implements LockInterface {
                 }
             }
 
-            usleep($sleep);
+            if ($waitTime) {
+                usleep($sleep);
+            }
         } while ($waitTime && microtime(true) < $exitTime);
 
         return false;
