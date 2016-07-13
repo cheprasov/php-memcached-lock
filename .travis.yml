@@ -32,3 +32,5 @@ before_install:
 install:
    - composer install
 
+service:
+   - memcached
