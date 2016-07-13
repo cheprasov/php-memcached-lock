@@ -11,7 +11,7 @@ matrix:
     - php: hhvm
 
 before_install:
-   - if [[ ! $PHP = hhvm* ]]; then echo "extension = <extension>.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini; fi
+   - if [[ ! $PHP = hhvm* ]]; then echo "extension = memcached.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini; fi
 
 install:
    - composer install
