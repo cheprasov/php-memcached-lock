@@ -167,7 +167,7 @@ class MemcachedLock implements LockInterface {
      * @return bool
      */
     protected function confirmLockToken($lockToken) {
-        $cas = null;
+        $cas = 0.0;
         $storageValue = $this->Memcached->get($this->key, null, $cas);
         if ($storageValue === $lockToken && $this->Memcached->getResultCode() !== Memcached::RES_NOTFOUND) {
             $this->isAcquired = true;
@@ -276,7 +276,7 @@ class MemcachedLock implements LockInterface {
                 continue;
             }
 
-            $cas = null;
+            $cas = 0.0;
             $storageLockToken = $this->Memcached->get($this->key, null, $cas);
             if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
                 // If key doesn't exist - will try to add again
@@ -377,7 +377,7 @@ class MemcachedLock implements LockInterface {
             return false;
         }
 
-        $cas = null;
+        $cas = 0.0;
         $storageLockToken = $this->Memcached->get($this->key, null, $cas);
         if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
             $this->resetLockData();
