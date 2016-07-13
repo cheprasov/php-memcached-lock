@@ -377,6 +377,7 @@ class MemcachedLock implements LockInterface {
             return false;
         }
 
+        $cas = null;
         $storageLockToken = $this->Memcached->get($this->key, null, $cas);
         if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
             $this->resetLockData();

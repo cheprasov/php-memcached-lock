@@ -15,7 +15,6 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
     protected function getMemcachedMock() {
         return $this->getMockBuilder(\Memcached::class)
             ->disableOriginalConstructor()
-            ->setMethods(['add', 'cas', 'get', 'getResultCode'])
             ->getMock();
     }
 
