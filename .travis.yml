@@ -11,6 +11,7 @@ matrix:
     - php: hhvm
 
 before_install:
+    - skip=0
     - PHP=$TRAVIS_PHP_VERSION
     - if [[ ! $PHP = hhvm* ]]; then INI_FILE=~/.phpenv/versions/$(phpenv version-name)/etc/conf.d/travis.ini; else INI_FILE=/etc/hhvm/php.ini; fi
     - if [[ ! $skip ]]; then echo memory_limit = -1 >> $INI_FILE; fi
