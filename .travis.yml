@@ -19,7 +19,7 @@ before_install:
    - |
       if [[ $TRAVIS_PHP_VERSION =~ 7.[10] ]]; then
           echo yes | pecl install apcu-5.1.2;
-          "extension = memcached.so" >> $PHP_INI;
+          echo "extension = memcached.so" >> $PHP_INI;
           git clone --branch php7 https://github.com/php-memcached-dev/php-memcached.git;
           cd php-memcached/; phpize; ./configure; make; make install;
       fi;
@@ -28,12 +28,12 @@ before_install:
           # echo "extension = apcu.so" >> $PHP_INI;
           echo "apc.enabled = 1" >> $PHP_INI;
           echo "apc.enable_cli = 1" >> $PHP_INI;
-          # "extension = memcached.so" >> $PHP_INI;
+          # echo "extension = memcached.so" >> $PHP_INI;
       fi;
 
    - |
       if [[ $TRAVIS_PHP_VERSION =~ 7.[1] ]]; then
-          "extension = memcached.so" >> $PHP_INI;
+          echo "extension = memcached.so" >> $PHP_INI;
       fi;
 
 install:
