@@ -7,6 +7,10 @@
 ## About
 MemcachedLock for PHP is a synchronization mechanism for enforcing limits on access to a resource in an environment where there are many threads of execution. A lock is designed to enforce a mutual exclusion concurrency control policy. Based on [Memcached](http://php.net/manual/en/book.memcached.php).
 
+## Bug in PHP 7 with Memcached
+Do not use this library for php7.
+http://developer.procurios.com/post/2016/05/17/Using-Memcached-with-PHP-7
+
 ## Usage
 
 ### Create a new instance of MemcachedLock
