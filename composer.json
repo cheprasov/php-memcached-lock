@@ -1,6 +1,6 @@
 {
   "name": "cheprasov/php-memcached-lock",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "MemcachedLock for PHP is a synchronization mechanism for enforcing limits on access to a resource in an environment where there are many threads of execution. A lock is designed to enforce a mutual exclusion concurrency control policy.",
   "homepage": "http://github.com/cheprasov/php-memcached-lock",
   "minimum-stability": "stable",
