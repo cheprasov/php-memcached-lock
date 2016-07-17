@@ -12,11 +12,8 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
     /**
      * @return \Memcached
      */
-    protected function getMemcachedMock() {
-        return $this->getMockBuilder(\Memcached::class)
-            ->disableOriginalConstructor()
-            ->setMethods(['add', 'cas', 'get', 'getResultCode'])
-            ->getMock();
+    protected function getMemcached() {
+        return new \Memcached();
     }
 
     protected function getMemcachedLockMock() {
@@ -29,7 +26,7 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
                 '_getMockMemcached'
             ])
             ->setConstructorArgs([
-                $Memcached = $this->getMemcachedMock(),
+                $Memcached = $this->getMemcached(),
                 static::TEST_KEY
             ])
             ->getMock();
@@ -45,12 +42,11 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
      */
     public function testMethod_createToken() {
         $key = static::TEST_KEY;
-        $time = time();
 
         $Method = new \ReflectionMethod('\MemcachedLock\MemcachedLock', 'createToken');
         $Method->setAccessible(true);
 
-        $result = $Method->invoke(new MemcachedLock($this->getMemcachedMock(), $key));
+        $result = $Method->invoke(new MemcachedLock($this->getMemcached(), $key));
         $this->assertTrue(is_string($result));
         $this->assertEquals(1, preg_match('/^(\d+):(0\.\d+ \d+):(\d+)$/', $result, $matches));
         $this->assertEquals(posix_getpid(), (int) $matches[1]);
@@ -66,7 +62,7 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
         $Method = new \ReflectionMethod('\MemcachedLock\MemcachedLock', 'getLockToken');
         $Method->setAccessible(true);
 
-        $result = $Method->invoke(new MemcachedLock($this->getMemcachedMock(), $key), $time);
+        $result = $Method->invoke(new MemcachedLock($this->getMemcached(), $key), $time);
         $this->assertTrue(is_string($result));
         $this->assertEquals(1, preg_match('/^(\d+):(\d+):(0\.\d+ \d+):(\d+)$/', $result, $matches));
         $this->assertEquals($time, (int)$matches[1]);
@@ -85,7 +81,7 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
             $time += mt_rand(1, 10);
             $token = posix_getpid() .':'. microtime(true) .':'. mt_rand(1, 9999);
             $lockToken = implode(':', [$time, $token]);
-            $result = $Method->invoke(new MemcachedLock($this->getMemcachedMock(), $key), $lockToken);
+            $result = $Method->invoke(new MemcachedLock($this->getMemcached(), $key), $lockToken);
             $this->assertEquals($time, $result);
         }
     }
@@ -98,7 +94,7 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
         $Method = new \ReflectionMethod(MemcachedLock::class, 'isFlagExist');
         $Method->setAccessible(true);
 
-        $MemcachedLock = new MemcachedLock($this->getMemcachedMock(), $key);
+        $MemcachedLock = new MemcachedLock($this->getMemcached(), $key);
         $this->assertSame(false, $Method->invoke(
             $MemcachedLock,
             MemcachedLock::FLAG_USE_SELF_EXPIRE_SYNC
@@ -109,7 +105,7 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
         ));
 
         $MemcachedLock = new MemcachedLock(
-            $this->getMemcachedMock(), $key,
+            $this->getMemcached(), $key,
             MemcachedLock::FLAG_CATCH_EXCEPTIONS | MemcachedLock::FLAG_USE_SELF_EXPIRE_SYNC
         );
         $this->assertSame(true, $Method->invoke(
@@ -122,7 +118,7 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
         ));
 
         $MemcachedLock = new MemcachedLock(
-            $this->getMemcachedMock(), $key,
+            $this->getMemcached(), $key,
             MemcachedLock::FLAG_CATCH_EXCEPTIONS
         );
         $this->assertSame(true, $Method->invoke(
@@ -135,7 +131,7 @@ class MemcachedLockTest extends \PHPUnit_Framework_TestCase {
         ));
 
         $MemcachedLock = new MemcachedLock(
-            $this->getMemcachedMock(), $key,
+            $this->getMemcached(), $key,
             MemcachedLock::FLAG_USE_SELF_EXPIRE_SYNC
         );
         $this->assertSame(false, $Method->invoke(

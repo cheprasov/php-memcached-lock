@@ -18,7 +18,7 @@ use InvalidArgumentException;
 
 class MemcachedLock implements LockInterface {
 
-    const VERSION = '1.0.2';
+    const VERSION = '1.0.3';
 
     /**
      * Catch Lock exceptions and return false or null as result
@@ -167,6 +167,7 @@ class MemcachedLock implements LockInterface {
      * @return bool
      */
     protected function confirmLockToken($lockToken) {
+        $cas = 0.0;
         $storageValue = $this->Memcached->get($this->key, null, $cas);
         if ($storageValue === $lockToken && $this->Memcached->getResultCode() !== Memcached::RES_NOTFOUND) {
             $this->isAcquired = true;
@@ -275,6 +276,7 @@ class MemcachedLock implements LockInterface {
                 continue;
             }
 
+            $cas = 0.0;
             $storageLockToken = $this->Memcached->get($this->key, null, $cas);
             if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
                 // If key doesn't exist - will try to add again
@@ -375,6 +377,7 @@ class MemcachedLock implements LockInterface {
             return false;
         }
 
+        $cas = 0.0;
         $storageLockToken = $this->Memcached->get($this->key, null, $cas);
         if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
             $this->resetLockData();
