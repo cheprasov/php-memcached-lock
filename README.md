@@ -11,6 +11,8 @@ MemcachedLock for PHP is a synchronization mechanism for enforcing limits on acc
 Do not use this library for php7.
 http://developer.procurios.com/post/2016/05/17/Using-Memcached-with-PHP-7
 
+Please, use [php-redis-lock](https://github.com/cheprasov/php-redis-lock), until php-memcached extension is not fixed
+
 ## Usage
 
 ### Create a new instance of MemcachedLock
