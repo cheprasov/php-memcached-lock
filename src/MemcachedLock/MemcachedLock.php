@@ -18,7 +18,7 @@ use InvalidArgumentException;
 
 class MemcachedLock implements LockInterface {
 
-    const VERSION = '1.0.3';
+    const VERSION = '1.0.4';
 
     /**
      * Catch Lock exceptions and return false or null as result
@@ -75,6 +75,11 @@ class MemcachedLock implements LockInterface {
     protected $token;
 
     /**
+     * @var bool
+     */
+    protected $useExtendedReturn = false;
+
+    /**
      * Flags
      * @var int
      */
@@ -103,6 +108,7 @@ class MemcachedLock implements LockInterface {
         $this->key = $key;
         $this->setFlags($flags);
         $this->token = $this->createToken();
+        $this->useExtendedReturn = version_compare(phpversion('memcached'), '2.9.9', '>');
     }
 
     /**
@@ -168,7 +174,7 @@ class MemcachedLock implements LockInterface {
      */
     protected function confirmLockToken($lockToken) {
         $cas = 0.0;
-        $storageValue = $this->Memcached->get($this->key, null, $cas);
+        $storageValue = $this->getWithCas($this->key, $cas);
         if ($storageValue === $lockToken && $this->Memcached->getResultCode() !== Memcached::RES_NOTFOUND) {
             $this->isAcquired = true;
             $this->cas = $cas;
@@ -232,6 +238,26 @@ class MemcachedLock implements LockInterface {
     }
 
     /**
+     * @param string $key
+     * @param mixed|null $cas_token
+     * @return bool|mixed
+     */
+    protected function getWithCas($key, &$cas_token = null)
+    {
+        if ($this->useExtendedReturn) {
+            $extendedReturn = $this->Memcached->get($key, null, Memcached::GET_EXTENDED);
+            if ($extendedReturn === Memcached::GET_ERROR_RETURN_VALUE) {
+                return false;
+            }
+
+            $cas_token = $extendedReturn['cas'];
+            return $extendedReturn['value'];
+        }
+
+        return $this->Memcached->get($key, null, $cas_token);
+    }
+
+    /**
      * @inheritdoc
      * @throws LockHasAcquiredAlreadyException
      */
@@ -277,7 +303,7 @@ class MemcachedLock implements LockInterface {
             }
 
             $cas = 0.0;
-            $storageLockToken = $this->Memcached->get($this->key, null, $cas);
+            $storageLockToken = $this->getWithCas($this->key, $cas);
             if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
                 // If key doesn't exist - will try to add again
                 continue;
@@ -378,7 +404,7 @@ class MemcachedLock implements LockInterface {
         }
 
         $cas = 0.0;
-        $storageLockToken = $this->Memcached->get($this->key, null, $cas);
+        $storageLockToken = $this->getWithCas($this->key, $cas);
         if ($this->Memcached->getResultCode() === Memcached::RES_NOTFOUND) {
             $this->resetLockData();
             if ($this->isThrowExceptions()) {
