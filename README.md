@@ -2,16 +2,10 @@
 [![Latest Stable Version](https://poser.pugx.org/cheprasov/php-memcached-lock/v/stable)](https://packagist.org/packages/cheprasov/php-memcached-lock)
 [![Total Downloads](https://poser.pugx.org/cheprasov/php-memcached-lock/downloads)](https://packagist.org/packages/cheprasov/php-memcached-lock)
 
-# MemcachedLock v1.0.3 for PHP >= 5.5
+# MemcachedLock v1.0.4 for PHP >= 5.5
 
 ## About
 MemcachedLock for PHP is a synchronization mechanism for enforcing limits on access to a resource in an environment where there are many threads of execution. A lock is designed to enforce a mutual exclusion concurrency control policy. Based on [Memcached](http://php.net/manual/en/book.memcached.php).
-
-## Bug in PHP 7 with Memcached
-Do not use this library for php7.
-http://developer.procurios.com/post/2016/05/17/Using-Memcached-with-PHP-7
-
-Please, use [php-redis-lock](https://github.com/cheprasov/php-redis-lock), until php-memcached extension is not fixed
 
 ## Usage
 
