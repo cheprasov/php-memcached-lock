@@ -3,7 +3,7 @@
  * This file is part of MemcachedLock.
  * git: https://github.com/cheprasov/php-memcached-lock
  *
- * (C) Alexander Cheprasov <cheprasov.84@ya.ru>
+ * (C) Alexander Cheprasov <acheprasov84@gmail.com>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -18,7 +18,7 @@ use InvalidArgumentException;
 
 class MemcachedLock implements LockInterface {
 
-    const VERSION = '1.0.4';
+    const VERSION = '1.0.5';
 
     /**
      * Catch Lock exceptions and return false or null as result
@@ -124,7 +124,7 @@ class MemcachedLock implements LockInterface {
      * @return string
      */
     protected function createToken() {
-        return posix_getpid() .':'. microtime() .':'. mt_rand(1, 9999);
+        return getmypid() .':'. microtime() .':'. mt_rand(1, 9999);
     }
 
     /**
